@@ -94,17 +94,17 @@ class Machine:
         return "ok"
 
     async def shutdown_machine(self) -> None:
-        await self._execute_cmd("sudo shutdown now")
+        await self._execute_cmd("poweroff")
 
     async def reboot_machine(self) -> None:
-        await self._execute_cmd("sudo shutdown -r now")
+        await self._execute_cmd("reboot")
 
     async def do_service_action(self,
                                 action: str,
                                 service_name: str
                                 ) -> None:
         await self._execute_cmd(
-            f'sudo systemctl {action} {service_name}')
+            f'/etc/init.d/{service_name} {action}')
 
     async def _handle_service_request(self, web_request: WebRequest) -> str:
         name: str = web_request.get('service')
@@ -247,21 +247,11 @@ class Machine:
         return cpu_info
 
     async def _find_active_services(self):
-        shell_cmd: SCMDComp = self.server.lookup_component('shell_command')
-        scmd = shell_cmd.build_shell_command(
-            "systemctl list-units --type=service")
-        try:
-            resp = await scmd.run_with_response()
-            lines = resp.split('\n')
-            services = [line.split()[0].strip() for line in lines
-                        if ".service" in line.strip()]
-        except Exception:
-            services = []
+        services = os.listdir("/etc/init.d/")
         for svc in services:
-            sname = svc.rsplit('.', 1)[0]
             for allowed in ALLOWED_SERVICES:
-                if sname.startswith(allowed):
-                    self.available_services.append(sname)
+                if svc.startswith(allowed):
+                    self.available_services.append(svc)
         self.system_info['available_services'] = self.available_services
 
 
